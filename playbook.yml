@@ -1,0 +1,34 @@
+---
+- hosts: localhost
+  vars:
+    conatiner_count: 4
+    tags: "{{ lookup('file', 'tags.txt')    }}"
+
+  tasks:
+
+    - name: Print file contents
+      debug:
+        msg: "file contents {{ tags}}"
+
+    - name: Split and Filter tags
+      debug:
+        msg: " {{ tags.split(';') | map('trim')|select()|list    }}"
+      register: tag_splits
+
+    - name: Prepare tags in key value pairs
+      set_fact:
+        new_var: "{{ dict(_keys|zip(_vals)) }}"
+      vars:
+        _arr: "{{ tags.split(';')|map('trim')|select()|list }}"
+        _keys: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\1') | map('trim')|list }}"
+        _vals: "{{ _arr | map('regex_replace', '^(.*?)=(.*)$', '\\2') | map('trim')|list }}"
+
+    - name: Extract ADGroup Name
+      set_fact:
+        ad_group: "{{ item.value | regex_search('ADGroup:(.*)', '\\1')| first }}"
+      loop:  "{{ new_var | dict2items }}"
+      when: item.key == "tags"
+
+    - name: Print ADGroup name
+      debug:
+        msg: "{{ ad_group }}"
